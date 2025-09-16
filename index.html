@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>예스맨을 찾아라</title>
+<head>
+    <style>
+  
+    </style>
+</head>
+<body>
+    <h1>예스맨을 찾아라!</h1>
+    <h2>아무나 클릭해보세요! 예스맨을 찾을 때 까지!</h2>
+    <button id="reshuffle">다시 섞기</button>
+  <div id="stage" style="position:relative; height:80vh; border:1px solid #ccc; overflow:hidden; margin-top:8px;"> 
+    
+  </div>
+
+  <script>
+  // === 설정 ===
+  const COUNT = 12;                          // 사람 수
+  const YES_FILE = 'yes.mp3';                // YES 오디오(1개)
+  const NO_FILES = ['no1.mp3','no2.mp3','no3.mp3','no4.mp3'];    // NO 오디오들
+  const SIZE = 96;                           // 픽토그램 크기(px) ★크게
+
+  const stage = document.getElementById('stage');
+  const btn   = document.getElementById('reshuffle');
+  let people = [];       // {el,x,y,dx,dy,w,h,audio,isYes}
+  let animId = null;
+  let playing = null;
+
+  function stopPlaying(){
+    if (playing){ playing.pause(); playing.currentTime = 0; playing = null; }
+  }
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  const rand = (min,max) => Math.random()*(max-min)+min;
+
+  function makePerson(isYes){
+    const el = document.createElement('span');
+    el.textContent = '🧍';
+    el.style.position = 'absolute';
+    el.style.cursor = 'pointer';
+    el.style.fontSize = SIZE + 'px';   // ★크기 적용
+    stage.appendChild(el);
+
+    const audio = new Audio(isYes ? YES_FILE : pick(NO_FILES));
+    audio.preload = 'auto';
+
+    el.onclick = () => {
+      stopPlaying();
+      audio.currentTime = 0;
+      audio.play().catch(()=>{});
+      playing = audio;
+      if (isYes) alert('YES! 찾았다!');
+    };
+
+    // 초기 위치/속도 (거의 안 움직이도록 매우 느리게)
+    const r = stage.getBoundingClientRect();
+    const p = {
+      el,
+      x: rand(10, r.width - 10),
+      y: rand(10, r.height - 10),
+      // ★ 아주 느린 속도(픽셀/프레임). 필요시 더 낮추세요.
+      dx: rand(0.01, 0.1) * (Math.random()<.5?-1:1),
+      dy: rand(0.01, 0.1) * (Math.random()<.5?-1:1),
+      audio,
+      isYes,
+      w: el.offsetWidth,
+      h: el.offsetHeight
+    };
+    return p;
+  }
+
+  function layout(p){
+    p.el.style.left = p.x + 'px';
+    p.el.style.top  = p.y + 'px';
+  }
+
+  function animate(){
+    const r = stage.getBoundingClientRect();
+    people.forEach(p=>{
+      p.x += p.dx; p.y += p.dy;
+      // 경계 반사 (요소 실제 크기 사용)
+      if (p.x < 0 || p.x > r.width - p.w)  p.dx *= -1;
+      if (p.y < 0 || p.y > r.height - p.h) p.dy *= -1;
+      layout(p);
+    });
+    animId = requestAnimationFrame(animate);
+  }
+
+  function spawn(){
+    cancelAnimationFrame(animId);
+    stopPlaying();
+    stage.innerHTML = '';
+    people = [];
+
+    const yesIndex = Math.floor(Math.random()*COUNT);
+    for(let i=0;i<COUNT;i++){
+      const p = makePerson(i===yesIndex);
+      // 화면 밖 시작 방지 (요소 크기 반영)
+      p.x = Math.min(Math.max(p.x, 0), stage.clientWidth  - p.w);
+      p.y = Math.min(Math.max(p.y, 0), stage.clientHeight - p.h);
+      people.push(p);
+      layout(p);
+    }
+    animId = requestAnimationFrame(animate);
+  }
+
+  document.getElementById('reshuffle').onclick = spawn;
+  window.addEventListener('resize', spawn);
+  spawn();
+  </script>
+</body>
+</html>
